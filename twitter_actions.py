@@ -3,22 +3,38 @@
 from tweepy.streaming import StreamListener
 from tweepy import OAuthHandler
 from tweepy import Stream
-from time import sleep
+from time import sleep, time
 import json
-
-access_token = ""
-access_token_secret = ""
-consumer_key = ""
-consumer_secret = ""
+from _datetime import datetime
 
 
 class MyStreamListener(StreamListener):
-    def on_status(self, status):
-        print(status.text)
 
     def on_data(self, data):
-        print(data)
-        return True
+        try:
+            all_data = json.loads(data)
+            t_date = all_data['created_at']
+            t_date = datetime.strptime(t_date, "%a %b %d %H:%M:%S %z %Y")  # change to datetime format
+            t_id = all_data['id']
+            t_followers = all_data['user']['followers_count']
+            if 'extended_tweet' in all_data:
+                t_text = all_data['extended_tweet']['full_text']
+            else:
+                t_text = all_data['text']
+            t_text = t_text.replace("'", "")  # Gives an error when writing to the db
+            t_text = t_text.replace(";", "")  # Is used as delimiter
+            t_text = t_text.encode("utf-8")  # Should get rid of unknown characters
+            t_user = all_data["user"]['id']
+
+            # hashtags = all_data['entities']['hashtags']
+
+            my_data = str(t_date)+";"+str(t_id)+";"+str(t_followers)+";"+str(t_text)+";"+str(t_user)
+            store_data(my_data)
+            return True
+        except BaseException as e:
+            print('failed ondata: ' + str(e) + ' TIME: ' + str(datetime.fromtimestamp(time()).strftime('%Y%m%d_%H%M')))
+            sleep(5)
+            pass
 
     def on_error(self, status_code):
         print(status_code)
@@ -31,16 +47,30 @@ class MyStreamListener(StreamListener):
 def get_secret():
     with open('secret.json') as f:
         data = json.load(f)
-        print(data)
+        return data
+
+
+def store_data(my_data):
+    try:
+        file_name = 'DATA/DataGatherer_' + str(datetime.fromtimestamp(time()).strftime('%Y%m%d_%H') + '.csv')
+        file = open(file_name, 'a')
+        file.write(my_data)
+        file.write('\n')
+        file.close()
+    except BaseException as e:
+        print('store_data: ' + str(e) + ' TIME: ' + str(datetime.fromtimestamp(time()).strftime('%Y%m%d_%H%M')))
+        sleep(5)
+        pass
 
 
 if __name__ == "__main__":
-    get_secret()
+    my_secret = get_secret()
     myListener = MyStreamListener()
-    auth = OAuthHandler(consumer_key, consumer_secret)
-    auth.set_access_token(access_token, access_token_secret)
+    auth = OAuthHandler(my_secret['consumer_key'], my_secret['consumer_secret'])
+    auth.set_access_token(my_secret['access_token'], my_secret['access_token_secret'])
     myStream = Stream(auth=auth, listener=myListener)
 
     # track = keywords; follow = user ID; locations
-    myStream.filter(languages=["nl"])
+    # myStream.filter(languages=["nl"], track=["het", "de", "een"])
+    myStream.filter(locations=[2.49,49.5,6.35,51.5], languages=["nl"])
 
