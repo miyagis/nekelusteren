@@ -6,6 +6,7 @@ from tweepy import Stream
 from time import sleep, time
 import json
 from _datetime import datetime
+from db import create_connection, get_data, tupple_in_list_to_string
 
 
 class MyStreamListener(StreamListener):
@@ -73,4 +74,5 @@ if __name__ == "__main__":
     # track = keywords; follow = user ID; locations
     # myStream.filter(languages=["nl"], track=["het", "de", "een"])
     myStream.filter(locations=[2.49,49.5,6.35,51.5], languages=["nl"])
+    # myStream.filter(follow=['98639150', '951258554', '40634644', '2860510937'])
 
